@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Kaggle raw data (do not commit)
+data/raw/sales_train.csv
+data/raw/*.csv
+
+# Processed data
+data/prep/
+data/inference/
+
+# Outputs
+outputs/
+
+# Logs (optional to ignore if you want only example logs)
+artifacts/logs/*.log

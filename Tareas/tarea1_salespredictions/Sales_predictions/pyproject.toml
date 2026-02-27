@@ -1,0 +1,59 @@
+[project]
+name = "sales-predictions"
+version = "0.1.0"
+description = "End-to-end pipeline for Kaggle Predict Future Sales (prep, train, inference)"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pandas",
+  "joblib",
+  "scikit-learn",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+  "pylint",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "__pycache__", "artifacts", "outputs", "notebooks", "data/raw/sales_train.csv"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.messages_control]
+disable = [
+  "too-few-public-methods",
+  "duplicate-code",
+  "too-many-arguments",
+  "too-many-positional-arguments",
+  "too-many-locals",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
