@@ -1,0 +1,9 @@
+.git
+data/
+artifacts/
+__pycache__/
+*.joblib
+*.csv
+*.parquet
+*.png
+*.jpg

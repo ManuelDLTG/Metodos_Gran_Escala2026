@@ -1,0 +1,26 @@
+cat >> .gitignore << 'EOF'
+
+# macOS / R
+.DS_Store
+**/.DS_Store
+.Rhistory
+**/.Rhistory
+
+# local env / cache
+**/.venv/
+**/.ruff_cache/
+
+# data + artifacts (generated)
+**/data/
+**/artifacts/
+**/*.joblib
+**/*.log
+
+# class material (do not track)
+Tareas/Sales_predictions/clase/
+EOF
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+
