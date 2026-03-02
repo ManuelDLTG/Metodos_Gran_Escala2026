@@ -1,85 +1,147 @@
-# Sales Predictions — Production-ready ML Pipeline
 
-Este repositorio implementa un pipeline end-to-end (prep → train → inference) para el reto de Kaggle **Predict Future Sales**. El modelo predice las ventas mensuales por `(shop_id, item_id)` y genera un archivo `submission.csv` listo para subir a Kaggle.
+# Sales Predictions – MLOps Pipeline
 
-La meta de la **Tarea 03** es convertir un proyecto que ya corre a un estándar **production-ready**: estructura limpia, funciones reusables, docstrings, logging, y herramientas automáticas de calidad (Ruff + Pylint).
+## 📌 Descripción
 
-## Estructura del repositorio
+Este proyecto implementa un pipeline completo de Machine Learning para el dataset Kaggle – Predict Future Sales, siguiendo buenas prácticas de MLOps:
 
-```text
-.
-├── artifacts/
-│   └── logs/                 # logs timestamped (se generan al correr scripts)
+- Steps desacoplados (preprocessing, training, inference)
+- Contenedores Docker independientes
+- Ejecución reproducible en EC2
+- CLI arguments parametrizables
+- Logging estructurado
+- Pruebas unitarias con pytest
+- Workflow Git con feature branches + development + main
+
+---
+
+# 🗂 Estructura del Proyecto
+
+Tareas/Sales_predictions/
+│
 ├── data/
-│   ├── raw/                  # datos originales de Kaggle
-│   ├── prep/                 # dataset mensual para entrenamiento (generado)
-│   ├── inference/            # features del set de test (generado)
-│   └── predictions/          # submissions (generado)
-├── notebooks/                # exploración y prototipos
-├── scripts/                  # entrypoints CLI
-└── src/
-    └── sales_predictions/
-        ├── utils/            # utilidades (logging, validation, metrics)
-        ├── prep.py           # ETL / features
-        ├── train.py          # entrenamiento
-        └── inference.py      # submission
-```
+│   ├── raw/
+│   ├── prep/
+│   └── inference/
+│
+├── artifacts/
+│   ├── logs/
+│   ├── models/
+│   └── preds/
+│
+├── src/
+│   ├── preprocessing/
+│   │   ├── __main__.py
+│   │   └── Dockerfile
+│   │
+│   ├── training/
+│   │   ├── __main__.py
+│   │   └── Dockerfile
+│   │
+│   ├── inference/
+│   │   ├── __main__.py
+│   │   └── Dockerfile
+│   │
+│   └── sales_predictions/
+│       ├── prep.py
+│       ├── train.py
+│       ├── inference.py
+│       └── utils/
+│
+└── docs/
+    └── screenshots/
 
-## Instalación y setup
+---
 
-Se recomienda `uv`.
+# 🔄 Git Workflow
 
-```bash
-uv venv
-source .venv/bin/activate
-uv sync --extra dev
-```
+Se utilizó el siguiente flujo:
 
-## Ejecución del pipeline
+- main → rama productiva
+- development → integración
+- feature/mlops-docker-steps → desarrollo de dockerización
 
-```bash
-python scripts/prep.py
-python scripts/train.py
-python scripts/inference.py
-```
+PR realizados:
 
-Los logs se guardan en `artifacts/logs/` y también se imprimen en consola.
+1. feature → development  
+2. development → main  
 
-![Pylint 10/10](docs/logs.png)
+---
 
-## Entradas y salidas
+# 🐳 Docker Build (EC2)
 
-- `scripts/prep.py`
-  - **Input:** `data/raw/sales_train.csv`, `data/raw/test.csv`, `data/raw/items_en.csv`
-  - **Output:** `data/prep/dataset_monthly.csv.gz`, `data/inference/test_features.csv.gz`
+## Build de imágenes
 
-- `scripts/train.py`
-  - **Input:** `data/prep/dataset_monthly.csv.gz`
-  - **Output:** `artifacts/model.joblib`
+docker build -t ml-preprocessing:latest ./src/preprocessing
+docker build -t ml-training:latest ./src/training
+docker build -t ml-inference:latest ./src/inference
 
-- `scripts/inference.py`
-  - **Input:** `data/inference/test_features.csv.gz`, `artifacts/model.joblib`
-  - **Output:** `data/predictions/submission.csv`
+### Evidencia
 
-## Métricas del modelo
+![Docker Build Training](docs/screenshots/01_docker_build_training.png)
+![Docker Images List](docs/screenshots/02_docker_images_list.png)
 
-- **RMSE (validación):** RMSE: 2.548426
-- **Kaggle Leaderboard:** https://kaggle.com/competitions/competitive-data-science-predict-future-sales
+---
 
-## Calidad de Código
+# 🚀 Ejecución del Pipeline
 
-### Ruff (format)
+## 1️⃣ Preprocessing
 
-```bash
-ruff format src scripts
-```
+docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-preprocessing:latest   --raw-dir data/raw   --prep-dir data/prep   --inference-dir data/inference   --prep-name dataset_monthly.csv.gz   --inference-name test_features.csv.gz
 
-### Pylint
+---
 
-```bash
-pylint src/sales_predictions
-```
-## Calidad de Código
+## 2️⃣ Training
 
-![Pylint 10/10](docs/pylint_10.png)
+docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-training:latest   --prep-path data/prep/dataset_monthly.csv.gz   --model-out artifacts/models/model.joblib   --val-block 33   --seed 42   --algo ridge
 
+### Evidencia Training
+
+![Training Success](docs/screenshots/03_docker_run_training_success.png)
+![Training RMSE](docs/screenshots/06_training_rmse_output.png)
+
+---
+
+## 3️⃣ Inference
+
+docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-inference:latest   --inference-path data/inference/test_features.csv.gz   --model-path artifacts/models/model.joblib   --pred-out artifacts/preds/submission.csv   --clip-min 0   --clip-max 20
+
+### Evidencia Inference
+
+![Inference Success](docs/screenshots/04_docker_run_inference_success.png)
+![Inference Log](docs/screenshots/07_inference_log_output.png)
+![Submission File](docs/screenshots/08_inference_submission_file.png)
+
+---
+
+# 🧪 Pruebas Unitarias
+
+Ejecutar:
+
+pytest src/ -v
+
+### Evidencia
+
+![Pytest All Passed](docs/screenshots/05_pytest_all_passed.png)
+
+---
+
+# ⚙️ Mejora Implementada
+
+Se agregó postprocesamiento configurable mediante CLI:
+
+--clip-min  
+--clip-max  
+
+Esto evita:
+
+- Predicciones negativas  
+- Valores extremos no realistas  
+
+---
+
+# 👤 Autor
+
+Manuel De la Tejera  
+ITAM – Maestría en Ciencia de Datos  
+Arquitectura de Datos 2026
