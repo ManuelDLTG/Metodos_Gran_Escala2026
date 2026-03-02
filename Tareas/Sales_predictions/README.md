@@ -15,45 +15,54 @@ Este proyecto implementa un pipeline completo de Machine Learning para el datase
 
 ---
 
-# 🗂 Estructura del Proyecto
+# Estructura del Proyecto
 
+```text
 Tareas/Sales_predictions/
-│
+├── README.md
+├── pyproject.toml
+├── uv.lock
 ├── data/
-│   ├── raw/
-│   ├── prep/
-│   └── inference/
-│
+│   ├── raw/                 # Kaggle CSVs (no subir a Git si son pesados)
+│   ├── prep/                # dataset_monthly.csv.gz
+│   └── inference/           # test_features.csv.gz
 ├── artifacts/
-│   ├── logs/
-│   ├── models/
-│   └── preds/
-│
-├── src/
-│   ├── preprocessing/
-│   │   ├── __main__.py
-│   │   └── Dockerfile
-│   │
-│   ├── training/
-│   │   ├── __main__.py
-│   │   └── Dockerfile
-│   │
-│   ├── inference/
-│   │   ├── __main__.py
-│   │   └── Dockerfile
-│   │
-│   └── sales_predictions/
-│       ├── prep.py
-│       ├── train.py
-│       ├── inference.py
-│       └── utils/
-│
-└── docs/
-    └── screenshots/
+│   ├── logs/                # logs del pipeline
+│   ├── models/              # model.joblib
+│   └── preds/               # submission.csv
+├── docs/
+│   └── screenshots/         # evidencia EC2 (docker build/run + pytest)
+└── src/
+    ├── preprocessing/
+    │   ├── Dockerfile
+    │   ├── __init__.py
+    │   ├── __main__.py      # ENTRYPOINT: python -m preprocessing
+    │   └── test/
+    │       └── test_preprocessing_validation.py
+    ├── training/
+    │   ├── Dockerfile
+    │   ├── __init__.py
+    │   ├── __main__.py      # ENTRYPOINT: python -m training
+    │   └── test/
+    │       └── test_training_utils.py
+    ├── inference/
+    │   ├── Dockerfile
+    │   ├── __init__.py
+    │   ├── __main__.py      # ENTRYPOINT: python -m inference
+    │   └── test/
+    │       └── test_inference_clipping.py
+    └── sales_predictions/
+        ├── prep.py
+        ├── train.py
+        ├── inference.py
+        └── utils/
+            ├── data_validation.py
+            ├── logging.py
+            └── metrics.py
 
 ---
 
-# 🔄 Git Workflow
+# Git Workflow
 
 Se utilizó el siguiente flujo:
 
@@ -68,7 +77,7 @@ PR realizados:
 
 ---
 
-# 🐳 Docker Build (EC2)
+# Docker Build (EC2)
 
 ## Build de imágenes
 
@@ -83,15 +92,15 @@ docker build -t ml-inference:latest ./src/inference
 
 ---
 
-# 🚀 Ejecución del Pipeline
+# Ejecución del Pipeline
 
-## 1️⃣ Preprocessing
+## 1 Preprocessing
 
 docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-preprocessing:latest   --raw-dir data/raw   --prep-dir data/prep   --inference-dir data/inference   --prep-name dataset_monthly.csv.gz   --inference-name test_features.csv.gz
 
 ---
 
-## 2️⃣ Training
+## 2 Training
 
 docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-training:latest   --prep-path data/prep/dataset_monthly.csv.gz   --model-out artifacts/models/model.joblib   --val-block 33   --seed 42   --algo ridge
 
@@ -102,7 +111,7 @@ docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts 
 
 ---
 
-## 3️⃣ Inference
+## 3 Inference
 
 docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-inference:latest   --inference-path data/inference/test_features.csv.gz   --model-path artifacts/models/model.joblib   --pred-out artifacts/preds/submission.csv   --clip-min 0   --clip-max 20
 
@@ -114,7 +123,7 @@ docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts 
 
 ---
 
-# 🧪 Pruebas Unitarias
+# Pruebas Unitarias
 
 Ejecutar:
 
@@ -126,7 +135,7 @@ pytest src/ -v
 
 ---
 
-# ⚙️ Mejora Implementada
+# Mejora Implementada
 
 Se agregó postprocesamiento configurable mediante CLI:
 
@@ -140,7 +149,7 @@ Esto evita:
 
 ---
 
-# 👤 Autor
+# Autor
 
 Manuel De la Tejera  
 ITAM – Maestría en Ciencia de Datos  
