@@ -59,7 +59,7 @@ Tareas/Sales_predictions/
             ├── data_validation.py
             ├── logging.py
             └── metrics.py
-
+```
 ---
 
 # Git Workflow
