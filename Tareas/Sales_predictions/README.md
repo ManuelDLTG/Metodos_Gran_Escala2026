@@ -1,156 +1,120 @@
 
-# Sales Predictions – MLOps Pipeline
+---
 
-## 📌 Descripción
+# Model
 
-Este proyecto implementa un pipeline completo de Machine Learning para el dataset Kaggle – Predict Future Sales, siguiendo buenas prácticas de MLOps:
+The model implemented is a **Ridge Regression model** trained on monthly aggregated sales data.
 
-- Steps desacoplados (preprocessing, training, inference)
-- Contenedores Docker independientes
-- Ejecución reproducible en EC2
-- CLI arguments parametrizables
-- Logging estructurado
-- Pruebas unitarias con pytest
-- Workflow Git con feature branches + development + main
+Training output example:
+
+```
+Modelo entrenado - RMSE: 2.548426
+```
 
 ---
 
-# Estructura del Proyecto
+# Docker Containers
 
-```text
-Tareas/Sales_predictions/
-├── README.md
-├── pyproject.toml
-├── uv.lock
-├── data/
-│   ├── raw/                 # Kaggle CSVs (no subir a Git si son pesados)
-│   ├── prep/                # dataset_monthly.csv.gz
-│   └── inference/           # test_features.csv.gz
-├── artifacts/
-│   ├── logs/                # logs del pipeline
-│   ├── models/              # model.joblib
-│   └── preds/               # submission.csv
-├── docs/
-│   └── screenshots/         # evidencia EC2 (docker build/run + pytest)
-└── src/
-    ├── preprocessing/
-    │   ├── Dockerfile
-    │   ├── __init__.py
-    │   ├── __main__.py      # ENTRYPOINT: python -m preprocessing
-    │   └── test/
-    │       └── test_preprocessing_validation.py
-    ├── training/
-    │   ├── Dockerfile
-    │   ├── __init__.py
-    │   ├── __main__.py      # ENTRYPOINT: python -m training
-    │   └── test/
-    │       └── test_training_utils.py
-    ├── inference/
-    │   ├── Dockerfile
-    │   ├── __init__.py
-    │   ├── __main__.py      # ENTRYPOINT: python -m inference
-    │   └── test/
-    │       └── test_inference_clipping.py
-    └── sales_predictions/
-        ├── prep.py
-        ├── train.py
-        ├── inference.py
-        └── utils/
-            ├── data_validation.py
-            ├── logging.py
-            └── metrics.py
+Two Docker images were built for SageMaker:
+
+### Training Image
+
+Responsible for running model training.
+
+```
+Dockerfile.train
+ENTRYPOINT: train_sagemaker.py
+```
+
+### Inference Image
+
+Responsible for serving predictions through a SageMaker endpoint.
+
+```
+Dockerfile.infer
+ENTRYPOINT: sagemaker_inference
+```
 
 ---
 
-# Git Workflow
+# Build Docker Images
 
-Se utilizó el siguiente flujo:
-
-- main → rama productiva
-- development → integración
-- feature/mlops-docker-steps → desarrollo de dockerización
-
-PR realizados:
-
-1. feature → development  
-2. development → main  
+```
+docker build --network sagemaker -f sagemaker/Dockerfile.train -t sales-preds-train .
+docker build --network sagemaker -f sagemaker/Dockerfile.infer -t sales-preds-infer .
+```
 
 ---
 
-# Docker Build (EC2)
+# Push Images to AWS ECR
 
-## Build de imágenes
+Repositories created:
 
-docker build -t ml-preprocessing:latest ./src/preprocessing
-docker build -t ml-training:latest ./src/training
-docker build -t ml-inference:latest ./src/inference
+```
+sales-preds-train
+sales-preds-infer
+```
 
-### Evidencia
+Images pushed to:
 
-![Docker Build Training](docs/screenshots/01_docker_build_training.png)
-![Docker Images List](docs/screenshots/02_docker_images_list.png)
-
----
-
-# Ejecución del Pipeline
-
-## 1 Preprocessing
-
-docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-preprocessing:latest   --raw-dir data/raw   --prep-dir data/prep   --inference-dir data/inference   --prep-name dataset_monthly.csv.gz   --inference-name test_features.csv.gz
+```
+448591726855.dkr.ecr.us-east-1.amazonaws.com/sales-preds-train
+448591726855.dkr.ecr.us-east-1.amazonaws.com/sales-preds-infer
+```
 
 ---
 
-## 2 Training
+# SageMaker Training Job
 
-docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-training:latest   --prep-path data/prep/dataset_monthly.csv.gz   --model-out artifacts/models/model.joblib   --val-block 33   --seed 42   --algo ridge
+The training job was executed in SageMaker using the custom training container.
 
-### Evidencia Training
+Training process:
 
-![Training Success](docs/screenshots/03_docker_run_training_success.png)
-![Training RMSE](docs/screenshots/06_training_rmse_output.png)
+1. Load dataset
+2. Train Ridge regression
+3. Evaluate RMSE
+4. Save model artifact
 
----
+Example log output:
 
-## 3 Inference
+```
+action=train fit status=success algo=ridge
+Modelo entrenado - RMSE: 2.548426
+model_path=/opt/ml/model/model.joblib
+```
 
-docker run --rm   -v $(pwd)/data:/app/data   -v $(pwd)/artifacts:/app/artifacts   ml-inference:latest   --inference-path data/inference/test_features.csv.gz   --model-path artifacts/models/model.joblib   --pred-out artifacts/preds/submission.csv   --clip-min 0   --clip-max 20
-
-### Evidencia Inference
-
-![Inference Success](docs/screenshots/04_docker_run_inference_success.png)
-![Inference Log](docs/screenshots/07_inference_log_output.png)
-![Submission File](docs/screenshots/08_inference_submission_file.png)
-
----
-
-# Pruebas Unitarias
-
-Ejecutar:
-
-pytest src/ -v
-
-### Evidencia
-
-![Pytest All Passed](docs/screenshots/05_pytest_all_passed.png)
+Training completed successfully.
 
 ---
 
-# Mejora Implementada
+# SageMaker Real-Time Endpoint
 
-Se agregó postprocesamiento configurable mediante CLI:
+After training, the inference container was deployed as a **real-time endpoint**.
 
---clip-min  
---clip-max  
+Endpoint name:
 
-Esto evita:
+```
+sales-preds-realtime-v2
+```
 
-- Predicciones negativas  
-- Valores extremos no realistas  
+Endpoint status:
+
+```
+InService
+```
 
 ---
 
-# Autor
+# Real-Time Prediction
 
-Manuel De la Tejera  
-ITAM – Maestría en Ciencia de Datos  
-Arquitectura de Datos 2026
+Example request:
+
+```python
+sample_payload = [
+{
+"date_block_num": 34,
+"shop_id": 31,
+"item_id": 5560,
+"item_category_id": 37
+}
+]
