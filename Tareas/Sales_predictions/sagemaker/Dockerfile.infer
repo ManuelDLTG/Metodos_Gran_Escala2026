@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /opt/program
+
+COPY pyproject.toml .
+COPY src ./src
+COPY sagemaker/inference_handler.py ./inference.py
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir . && \
+    pip install --no-cache-dir sagemaker-inference
+
+ENV SAGEMAKER_PROGRAM=inference.py
+
+ENTRYPOINT ["python", "-m", "sagemaker_inference"]

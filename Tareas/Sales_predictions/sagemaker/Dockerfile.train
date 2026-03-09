@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /opt/program
+
+COPY pyproject.toml .
+COPY src ./src
+COPY sagemaker/train_sagemaker.py ./train_sagemaker.py
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+
+ENTRYPOINT ["python", "train_sagemaker.py"]
