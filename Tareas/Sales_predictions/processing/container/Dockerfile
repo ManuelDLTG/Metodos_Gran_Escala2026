@@ -9,3 +9,4 @@ COPY processing/preprocess.py ./preprocess.py
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir . && \
     pip install --no-cache-dir pandas numpy scikit-learn
+cd ..
