@@ -1,312 +1,133 @@
-# SageMaker Processing Job --- BYOC (Feature Engineering Pipeline)
+# Tarea 07 — SageMaker Pipelines (BYOC End-to-End)
 
-<<<<<<< HEAD
+## Overview
+This project implements an end-to-end Machine Learning pipeline using **Amazon SageMaker Pipelines** with fully custom containers (BYOC).
+
+The pipeline automates:
+- Data preprocessing
+- Model training
+- Model evaluation (RMSE)
+- Conditional logic
+- Model registration
+- Batch inference
+
 ---
 
-# Model
+## Architecture
 
-The model implemented is a **Ridge Regression model** trained on monthly aggregated sales data.
+Processing → Training → Evaluation → Condition  
+                              ↓  
+                    Model → Transform → Register  
+                              ↓  
+                            Fail  
 
-Training output example:
+---
 
-```
-Modelo entrenado - RMSE: 2.548426
-```
-=======
-## Overview
+## Pipeline Steps
 
-This project implements a **data preprocessing pipeline in Amazon
-SageMaker using a Bring Your Own Container (BYOC)** architecture.
+### 1. ProcessingStep — Preprocessing
+- Container: `sales-preds-processing`
+- Script: `preprocess.py`
+- Outputs:
+  - train_split.csv
+  - validation_split.csv
+  - test_features.csv
 
-The objective of this stage is to transform **raw sales data into
-structured feature datasets** that can later be used for machine
-learning training and inference.
+---
 
-Instead of preprocessing data locally, the pipeline runs inside a
-**SageMaker Processing Job**, ensuring:
+### 2. TrainingStep — Training
+- Container: `sales-preds-train`
+- Script: `train_pipeline.py`
+- Model: Ridge Regression
+- Output:
+  - model.joblib
 
--   reproducibility
--   scalability
--   cloud‑native execution
--   separation between compute and storage
+---
 
-------------------------------------------------------------------------
+### 3. ProcessingStep — Evaluation
+- Script: `evaluate.py`
+- Metric: RMSE
+- Output:
+  - evaluation.json
 
-# Pipeline Architecture
->>>>>>> feature/sagemaker-processing-byoc
-
-S3 Raw Data\
-↓\
-SageMaker Processing Job (BYOC container)\
-↓\
-Feature Engineering (`processing/preprocess.py`)\
-↓\
-Processed datasets stored in S3\
-↓\
-Training / Inference pipeline
-
-<<<<<<< HEAD
-# Docker Containers
-
-Two Docker images were built for SageMaker:
-
-### Training Image
-
-Responsible for running model training.
-
-```
-Dockerfile.train
-ENTRYPOINT: train_sagemaker.py
-```
-
-### Inference Image
-
-Responsible for serving predictions through a SageMaker endpoint.
-
-```
-Dockerfile.infer
-ENTRYPOINT: sagemaker_inference
-```
-=======
-------------------------------------------------------------------------
-
-# Container Architecture (BYOC)
-
-A custom Docker container was built for preprocessing.
-
-The container includes:
-
--   Python
--   pandas
--   numpy
--   project source code
->>>>>>> feature/sagemaker-processing-byoc
-
-The container executes:
-
-<<<<<<< HEAD
-# Build Docker Images
-
-```
-docker build --network sagemaker -f sagemaker/Dockerfile.train -t sales-preds-train .
-docker build --network sagemaker -f sagemaker/Dockerfile.infer -t sales-preds-infer .
-```
-=======
-    processing/preprocess.py
-
-The image is stored in **Amazon ECR**.
-
-------------------------------------------------------------------------
-
-# Processing Job Execution
-
-The preprocessing job runs using the **SageMaker ScriptProcessor API**.
->>>>>>> feature/sagemaker-processing-byoc
-
-Input data is mounted inside the container at:
-
-<<<<<<< HEAD
-# Push Images to AWS ECR
-
-Repositories created:
-
-```
-sales-preds-train
-sales-preds-infer
-```
-
-Images pushed to:
-
-```
-448591726855.dkr.ecr.us-east-1.amazonaws.com/sales-preds-train
-448591726855.dkr.ecr.us-east-1.amazonaws.com/sales-preds-infer
-```
-=======
-    /opt/ml/processing/input
-
-Outputs are written to:
-
-    /opt/ml/processing/output
->>>>>>> feature/sagemaker-processing-byoc
-
-------------------------------------------------------------------------
-
-<<<<<<< HEAD
-# SageMaker Training Job
-
-The training job was executed in SageMaker using the custom training container.
-
-Training process:
-
-1. Load dataset
-2. Train Ridge regression
-3. Evaluate RMSE
-4. Save model artifact
-
-Example log output:
-
-```
-action=train fit status=success algo=ridge
-Modelo entrenado - RMSE: 2.548426
-model_path=/opt/ml/model/model.joblib
-```
-
-Training completed successfully.
-=======
-# Feature Engineering
-
-The preprocessing pipeline performs:
-
--   merge between sales and item metadata
--   monthly aggregation of sales
--   generation of the modeling dataset
--   train / validation splits
--   inference feature construction
-
-Generated features:
->>>>>>> feature/sagemaker-processing-byoc
-
--   `date_block_num`
--   `shop_id`
--   `item_id`
--   `item_cnt_month`
--   `item_category_id`
-
-<<<<<<< HEAD
-# SageMaker Real-Time Endpoint
-
-After training, the inference container was deployed as a **real-time endpoint**.
-
-Endpoint name:
-
-```
-sales-preds-realtime-v2
-```
-
-Endpoint status:
-
-```
-InService
-```
-=======
-------------------------------------------------------------------------
-
-# Dataset Preview
-
-![Dataset preview](docs/screenshots/02_dataset_preview.png)
-
-Example rows from the aggregated monthly dataset.
->>>>>>> feature/sagemaker-processing-byoc
-
-------------------------------------------------------------------------
-
-<<<<<<< HEAD
-# Real-Time Prediction
-
-Example request:
-
-```python
-sample_payload = [
+Example:
 {
-"date_block_num": 34,
-"shop_id": 31,
-"item_id": 5560,
-"item_category_id": 37
+  "regression_metrics": {
+    "rmse": {
+      "value": 2.54
+    }
+  }
 }
-]
-=======
-# Inference Dataset
 
-![Inference preview](docs/screenshots/03_inference_preview.png)
+---
 
-Features prepared for inference on the Kaggle test dataset.
+### 4. ConditionStep
+If RMSE ≤ threshold:
+- Register model
+- Run batch transform
 
-Dataset sizes produced by the processing job:
+Else:
+- Fail pipeline
 
-    full:        163525 rows
-    train:       123159 rows
-    validation:   40366 rows
-    inference:   214200 rows
+---
 
-------------------------------------------------------------------------
+### 5. ModelStep — Create Model
+- Container: `sales-preds-infer`
 
-# S3 Storage Structure
+---
 
-![S3 structure](docs/screenshots/01_processing_outputs.png)
+### 6. TransformStep — Batch Inference
+- Generates predictions
+- Stores results in S3
 
-Processed datasets are written to the S3 bucket using this structure:
+---
 
-    sales-predictions/
-    ├── raw/
-    ├── processed/
-    ├── train/
-    └── output/
+### 7. RegisterModel
+- Registers model in SageMaker Model Registry
 
-------------------------------------------------------------------------
+---
 
-# ECR Container Image
+## AWS Components Used
+- SageMaker Pipelines
+- ECR (custom containers)
+- S3 (artifacts)
+- CloudWatch (logs)
 
-![ECR image](docs/screenshots/04_ecr_image.png)
+---
 
-The preprocessing container is stored in **Amazon Elastic Container
-Registry (ECR)**.
+## Repository Structure
+- processing/
+- sagemaker/
+- notebooks/
+- docs/screenshots/
 
-Repository:
+---
 
-    sales-preds-processing
+## Evidence (Screenshots Required)
+You must include:
+1. Pipeline execution (Succeeded)
+2. Pipeline graph
+3. ECR images
+4. Processing outputs
+5. Evaluation output
+6. Model registry
+7. Batch transform output
 
-------------------------------------------------------------------------
+---
 
-# SageMaker Processing Job
+![Pylint 10/10](docs/1_pipeline.png)
 
-![Processing job](docs/screenshots/05_processing_job_completed.png)
 
-The SageMaker processing job successfully completed and produced the
-datasets used for model training.
+![Pylint 10/10](docs/2_pipeline.png)
 
-------------------------------------------------------------------------
+---
 
-# Repository Structure
+## Conclusion
+This project demonstrates a production-ready ML pipeline using custom containers, enabling full control over training and inference workflows.
 
-    Tareas/Sales_predictions/
+---
 
-    processing/
-     ├── container/
-     │     └── Dockerfile
-     │
-     └── preprocess.py
-
-    notebooks/
-     └── tarea06_sagemaker_processing_byoc.ipynb
-
-    data/
-     ├── raw/
-     └── prep/
-
-    docs/
-     └── screenshots/
-
-------------------------------------------------------------------------
-
-# Technologies Used
-
--   Amazon SageMaker
--   Amazon S3
--   Amazon ECR
--   Docker
--   Python
--   pandas
-
-------------------------------------------------------------------------
-
-# Result
-
-The preprocessing pipeline converts raw sales data into a structured
-feature dataset ready for machine learning workflows.
-
-This stage integrates with future steps such as:
-
--   model training
--   model deployment
--   real‑time inference endpoints
->>>>>>> feature/sagemaker-processing-byoc
+## Author
+Manuel De la Tejera
+MSc Data Science — ITAM
+CFA Level I Passed
